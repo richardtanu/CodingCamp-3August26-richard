@@ -1,0 +1,991 @@
+/* ============================================================
+   SEFC Expense & Budget Visualizer — main.css
+   Mobile-first responsive layout with WCAG 4.5:1 colour palette
+   ============================================================ */
+
+/* ── Custom properties (light theme — default) ───────────────── */
+:root {
+  --color-primary:      #4A90D9;   /* primary blue */
+  --color-overage:      #E53E3E;   /* overage red */
+  --color-neutral:      #A0AEC0;   /* neutral grey */
+  --color-background:   #F7FAFC;
+  --color-surface:      #FFFFFF;
+  --color-text:         #1A202C;   /* dark — 4.5:1+ on white/light */
+  --color-text-muted:   #4A5568;   /* 4.5:1+ on white */
+  --color-border:       #CBD5E0;
+  --color-warning-bg:   #FFFBEB;
+  --color-warning-text: #92400E;   /* 4.5:1+ on #FFFBEB */
+  --color-error:        #C53030;   /* 4.5:1+ on white */
+  --color-badge-bg:     #EBF4FF;
+  --color-badge-text:   #2B6CB0;
+
+  --radius:       6px;
+  --shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md:    0 4px 12px rgba(0, 0, 0, 0.15);
+  --transition:   0.2s ease;
+
+  --nav-height:   56px;
+  --container-max: 1320px;
+}
+
+/* ── Dark theme overrides ─────────────────────────────────────── */
+html[data-theme="dark"] {
+  --color-primary:      #63B3ED;
+  --color-overage:      #FC8181;
+  --color-neutral:      #718096;
+  --color-background:   #1A202C;
+  --color-surface:      #2D3748;
+  --color-text:         #F7FAFC;
+  --color-text-muted:   #CBD5E0;
+  --color-border:       #4A5568;
+  --color-warning-bg:   #452B0A;
+  --color-warning-text: #FBD38D;
+  --color-error:        #FEB2B2;
+  --color-badge-bg:     #2C5282;
+  --color-badge-text:   #BEE3F8;
+}
+
+/* ── Box-sizing reset ────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  overflow-x: hidden;
+  min-width: 320px;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+/* ── Container helper ───────────────────────────────────────── */
+main {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+/* ── Storage warning banner ─────────────────────────────────── */
+#storage-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-bottom: 2px solid #F6AD55;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-weight: 600;
+  width: 100%;
+}
+
+#storage-warning[hidden] {
+  display: none;
+}
+
+/* ── Loading indicator ──────────────────────────────────────── */
+#loading-indicator {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(247, 250, 252, 0.85);
+  z-index: 200;
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+}
+
+#loading-indicator[hidden] {
+  display: none;
+}
+
+/* ── Header — background spans full width; inner content is capped ──── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-inner {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+}
+
+header h1 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+/* ── Navigation ─────────────────────────────────────────────── */
+nav[aria-label="Main navigation"] {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;       /* Firefox */
+  gap: 0.25rem;
+  /* No flex-grow — nav should size to its own content, not stretch to
+     eat the space the header-actions group needs to sit flush right. */
+  flex: 0 1 auto;
+}
+
+nav[aria-label="Main navigation"]::-webkit-scrollbar {
+  display: none;               /* Chrome/Safari */
+}
+
+nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  padding: 0.625rem 1rem;      /* 10px 16px — vertical centre with 44px target */
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color var(--transition), color var(--transition);
+  flex-shrink: 0;
+}
+
+nav a:hover,
+nav a:focus-visible {
+  background-color: var(--color-badge-bg);
+  color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+nav a[aria-current="page"] {
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+}
+
+/* ── Header actions (theme toggle + reset) ──────────────────────
+   Grouped so the two buttons always wrap to a new row together
+   instead of splitting apart when the header runs out of space. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;   /* pushes the button pair flush to the right edge */
+}
+
+/* ── Theme toggle button ───────────────────────────────────────── */
+#btn-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 0.875rem;
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+#btn-theme-toggle:hover,
+#btn-theme-toggle:focus-visible {
+  background-color: var(--color-badge-bg);
+  color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.theme-toggle-icon {
+  font-size: 1rem;
+}
+
+/* ── Reset button ───────────────────────────────────────────── */
+#btn-reset {
+  padding: 0.625rem 1rem;
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+  background-color: transparent;
+  color: var(--color-overage);
+  border: 1px solid var(--color-overage);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+#btn-reset:hover,
+#btn-reset:focus-visible {
+  background-color: var(--color-overage);
+  color: var(--color-surface);
+  outline: 2px solid var(--color-overage);
+  outline-offset: 2px;
+}
+
+/* ── Main content area ──────────────────────────────────────── */
+main {
+  padding-block: 1.5rem;
+}
+
+/* ── Sections / Views ───────────────────────────────────────── */
+.view {
+  display: none;
+  width: 100%;
+  animation: fadeIn 0.15s ease;
+}
+
+.view--active,
+.view:not([hidden]) {
+  display: block;
+}
+
+/* Ensure default dashboard section is shown on first load
+   before JS runs — HTML has .view--active applied to #view-dashboard */
+#view-dashboard.view--active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.view h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.view-intro {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Summary total ──────────────────────────────────────────── */
+.summary-total {
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.summary-total .label {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Chart container ────────────────────────────────────────── */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 220px;              /* mobile */
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.chart-empty-message,
+.chart-unavailable-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.chart-empty-message[hidden],
+.chart-unavailable-message[hidden] {
+  display: none;
+}
+
+/* ── Budget summary ─────────────────────────────────────────── */
+.budget-summary {
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  /* Fallback only — the column is sized wide enough that the table
+     shouldn't need to scroll horizontally under normal use. */
+  overflow-x: auto;
+}
+
+.budget-summary h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.75rem;
+}
+
+.budget-table,
+.monthly-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.budget-table th,
+.budget-table td,
+.monthly-table th,
+.monthly-table td {
+  padding: 0.625rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.budget-table th,
+.monthly-table th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background-color: var(--color-background);
+  /* Header labels may wrap to two lines on narrow screens rather than
+     forcing the table wider than its card. */
+  white-space: normal;
+}
+
+.budget-table td,
+.monthly-table td {
+  color: var(--color-text);
+  /* Values (currency, category names) stay on one line for readability. */
+  white-space: nowrap;
+}
+
+.budget-table td.empty-state-cell,
+.monthly-table td.empty-state-cell {
+  /* The empty-state sentence is prose, not tabular data — let it wrap. */
+  white-space: normal;
+}
+
+.budget-table tr:last-child td,
+.monthly-table tr:last-child td {
+  border-bottom: none;
+}
+
+.budget-table .over-budget {
+  color: var(--color-overage);
+  font-weight: 600;
+}
+
+/* ── Monthly summary ────────────────────────────────────────── */
+.monthly-summary {
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+}
+
+/* ── Transaction list ───────────────────────────────────────── */
+.expense-list {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.25rem;
+  max-height: 340px;
+}
+
+.expense-list-header {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.expense-items {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;   /* let the list scroll instead of stretching its flex parent */
+  padding-right: 0.625rem;   /* clearance so the delete button isn't flush against the scrollbar */
+}
+
+.expense-list-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sort-control label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.sort-control select {
+  width: auto;
+  min-height: 36px;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.expense-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.expense-item:last-child {
+  border-bottom: none;
+}
+
+.expense-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.expense-item__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  overflow-wrap: break-word;
+}
+
+.expense-item__amount {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-top: 0.125rem;
+}
+
+.expense-item__category-badge {
+  display: inline-block;
+  margin-top: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  background-color: var(--color-badge-bg);
+  color: var(--color-badge-text);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.expense-item__date {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.expense-item__description {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+  overflow-wrap: break-word;
+}
+
+.btn-delete-expense,
+.btn-delete-category {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  background-color: var(--color-overage);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--transition), opacity var(--transition);
+}
+
+.btn-delete-expense:hover,
+.btn-delete-expense:focus-visible,
+.btn-delete-category:hover,
+.btn-delete-category:focus-visible {
+  opacity: 0.85;
+  outline: 2px solid var(--color-overage);
+  outline-offset: 2px;
+}
+
+/* ── Empty state messages ───────────────────────────────────── */
+.empty-state-message {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+/* ── Forms ───────────────────────────────────────────────────── */
+/* Data-entry forms are centred, card-styled panels rather than
+   plain left-aligned fields. */
+#form-expense,
+#form-budget,
+#form-add-category {
+  max-width: 480px;
+  margin-inline: auto;
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+.label-optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+input[type="number"],
+input[type="date"],
+input[type="text"],
+select,
+textarea {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  appearance: auto;
+}
+
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="text"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.3);
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 2px rgba(197, 48, 48, 0.2);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+
+/* ── Form error messages ─────────────────────────────────────── */
+.form-error {
+  font-size: 0.8125rem;
+  color: var(--color-error);
+  font-weight: 500;
+  min-height: 1.25rem;        /* prevents layout shift */
+}
+
+.form-error:empty {
+  display: none;
+}
+
+/* ── Submit buttons ─────────────────────────────────────────── */
+button[type="submit"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  min-height: 44px;
+  min-width: 44px;
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition);
+  margin-top: 0.5rem;
+}
+
+button[type="submit"]:hover,
+button[type="submit"]:focus-visible {
+  background-color: #2B6CB0;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Toast notification (fixed, top-right, auto-dismiss) ──────── */
+.toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  left: auto;
+  z-index: 400;
+  max-width: 320px;
+  padding: 0.75rem 1rem;
+  background-color: #C6F6D5;
+  color: #276749;              /* 4.5:1+ on #C6F6D5 */
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transform: translateX(calc(100% + 1rem));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.toast.is-visible {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+html[data-theme="dark"] .toast {
+  background-color: #276749;
+  color: #C6F6D5;
+}
+
+@media (max-width: 480px) {
+  .toast {
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
+}
+
+/* ── Category section ───────────────────────────────────────── */
+.category-section {
+  margin-top: 2rem;
+}
+
+.category-section h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+
+.default-categories-note {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.default-category-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.default-category-list li {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+#custom-category-list {
+  list-style: none;
+}
+
+#custom-category-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+  background-color: var(--color-surface);
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+/* ── Confirm / Cancel Dialog ─────────────────────────────────── */
+#dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 1rem;
+}
+
+#dialog-overlay[hidden] {
+  display: none;
+}
+
+.dialog-card {
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 2rem;
+  max-width: 480px;
+  width: 100%;
+}
+
+.dialog-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.75rem;
+}
+
+.dialog-message {
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.dialog-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+#dialog-cancel {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+#dialog-cancel:hover,
+#dialog-cancel:focus-visible {
+  background-color: var(--color-badge-bg);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.btn-danger,
+#dialog-confirm {
+  background-color: var(--color-overage);
+  color: #FFFFFF;
+  border: none;
+}
+
+.btn-danger:hover,
+.btn-danger:focus-visible,
+#dialog-confirm:hover,
+#dialog-confirm:focus-visible {
+  opacity: 0.85;
+  outline: 2px solid var(--color-overage);
+  outline-offset: 2px;
+}
+
+/* ── Focus styles (visible for keyboard users) ───────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BREAKPOINT: 768px — Tablet / two-column dashboard
+   ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+
+  .header-inner {
+    gap: 1rem;
+  }
+
+  header h1 {
+    font-size: 1.25rem;
+  }
+
+  nav a {
+    font-size: 0.9375rem;
+  }
+
+  /* Two-column dashboard layout — only while the view is actually visible,
+     otherwise this would override .view { display: none } and stay on
+     screen underneath whichever view is active. */
+  #view-dashboard.view--active {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    column-gap: 1.25rem;
+    align-items: start;
+  }
+
+  #view-dashboard h2 {
+    grid-column: 1 / -1;
+  }
+
+  .summary-total {
+    grid-column: 1 / -1;
+  }
+
+  .chart-container {
+    height: 300px;             /* tablet */
+    grid-column: 1;
+    grid-row: 3;
+    margin-bottom: 0;
+  }
+
+  .budget-summary {
+    grid-column: 2;
+    grid-row: 3;
+    margin-bottom: 0;
+  }
+
+  .expense-list {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    margin-top: 1.25rem;
+    max-height: 380px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BREAKPOINT: 1024px — Desktop / three-panel dashboard
+   ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+
+  .header-inner {
+    padding-block: 0.625rem;
+  }
+
+  header h1 {
+    font-size: 1.375rem;
+  }
+
+  nav[aria-label="Main navigation"] {
+    overflow-x: visible;
+    flex-wrap: nowrap;
+  }
+
+  nav a {
+    font-size: 1rem;
+  }
+
+  /* Three-panel dashboard — only while the view is actually visible.
+     Budget summary and transactions get a wider column so their
+     tables/cards have room to breathe; the chart takes what's left.
+     minmax() (not fixed px) lets all three shrink together at the low
+     end of this breakpoint (from 1024px) instead of overflowing. */
+  #view-dashboard.view--active {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.4fr) minmax(280px, 1fr) minmax(280px, 1fr);
+    column-gap: 1.5rem;
+  }
+
+  #view-dashboard h2 {
+    grid-column: 1 / -1;
+  }
+
+  .summary-total {
+    grid-column: 1 / -1;
+  }
+
+  .chart-container {
+    height: 400px;             /* desktop */
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .budget-summary {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .expense-list {
+    grid-column: 3;
+    grid-row: 3;
+    margin-top: 0;
+    max-height: 400px;          /* matches .chart-container at this breakpoint */
+  }
+}
+
+/* ── Print / high-contrast / reduced-motion overrides ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "sefc-expense-budget-visualizer",
+  "version": "1.0.0",
+  "description": "Client-side expense and budget visualizer",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

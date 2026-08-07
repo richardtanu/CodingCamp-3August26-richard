@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEFC Expense &amp; Budget Visualizer</title>
+  <link rel="stylesheet" href="./css/main.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Storage unavailable warning -->
+  <div id="storage-warning" role="alert" hidden>
+    <p>Storage unavailable &mdash; data will not be saved between sessions. Your browser may be in private mode or has storage access blocked.</p>
+  </div>
+
+  <!-- Loading indicator -->
+  <div id="loading-indicator" aria-live="polite" hidden>
+    <p>Loading&hellip;</p>
+  </div>
+
+  <!-- App header — background spans full width; .header-inner caps content width -->
+  <header>
+    <div class="header-inner">
+      <h1>SEFC Expense &amp; Budget Visualizer</h1>
+      <nav aria-label="Main navigation">
+        <a href="#view-dashboard" aria-current="page">Dashboard</a>
+        <a href="#view-add-expense">Add Transaction</a>
+        <a href="#view-set-budget">Set Budget</a>
+        <a href="#view-categories">Categories</a>
+        <a href="#view-monthly">Monthly Summary</a>
+      </nav>
+      <div class="header-actions">
+        <button id="btn-theme-toggle" type="button" aria-pressed="false">
+          <span class="theme-toggle-icon" aria-hidden="true">&#127769;</span>
+          <span class="theme-toggle-label">Dark Mode</span>
+        </button>
+        <button id="btn-reset" type="button">Reset All Data</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <main>
+
+    <!-- Dashboard view (default visible) -->
+    <section id="view-dashboard" class="view view--active" aria-label="Dashboard">
+      <h2>Dashboard</h2>
+
+      <!-- Total balance summary -->
+      <div class="summary-total" aria-label="Total balance">
+        <!-- Populated by renderTotalSummary() -->
+      </div>
+
+      <!-- Chart area -->
+      <div class="chart-container">
+        <canvas id="main-chart" aria-label="Spending by category chart" role="img"></canvas>
+        <p class="chart-empty-message" hidden>No data yet. Add a transaction to see the chart.</p>
+        <p class="chart-unavailable-message" hidden>Chart unavailable &mdash; could not load charting library.</p>
+      </div>
+
+      <!-- Budget summary table -->
+      <div class="budget-summary" aria-label="Budget summary">
+        <h3>Budget Summary</h3>
+        <table class="budget-table">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Budget</th>
+              <th scope="col">Spent</th>
+              <th scope="col">Remaining</th>
+            </tr>
+          </thead>
+          <tbody id="budget-table-body">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Transaction list -->
+      <div class="expense-list" aria-label="Transaction list">
+        <div class="expense-list-header">
+          <h3>Transactions</h3>
+          <div class="sort-control">
+            <label for="sort-select">Sort by</label>
+            <select id="sort-select">
+              <option value="date-desc">Date (newest first)</option>
+              <option value="amount-desc">Amount (highest first)</option>
+              <option value="category-asc">Category (A&ndash;Z)</option>
+            </select>
+          </div>
+        </div>
+        <!-- Populated by renderExpenseList() -->
+      </div>
+    </section>
+
+    <!-- Add Transaction view (hidden by default) -->
+    <section id="view-add-expense" class="view" aria-label="Add Transaction" hidden>
+      <h2>Add Transaction</h2>
+
+      <form id="form-expense" novalidate>
+
+        <!-- Item name field -->
+        <div class="form-group">
+          <label for="expense-name">Item Name <span aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="expense-name"
+            name="name"
+            maxlength="100"
+            placeholder="e.g. Coffee, Bus ticket"
+            required
+            aria-required="true"
+            aria-describedby="expense-name-error"
+          >
+          <div id="expense-name-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <!-- Amount field -->
+        <div class="form-group">
+          <label for="expense-amount">Amount <span aria-hidden="true">*</span></label>
+          <input
+            type="number"
+            id="expense-amount"
+            name="amount"
+            min="0.01"
+            max="999999999.99"
+            step="0.01"
+            placeholder="0.00"
+            required
+            aria-required="true"
+            aria-describedby="expense-amount-error"
+          >
+          <div id="expense-amount-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <!-- Category field -->
+        <div class="form-group">
+          <label for="expense-category">Category <span aria-hidden="true">*</span></label>
+          <select
+            id="expense-category"
+            name="categoryId"
+            required
+            aria-required="true"
+            aria-describedby="expense-category-error"
+          >
+            <option value="">-- Select a category --</option>
+            <!-- Populated dynamically from getAllCategories() -->
+          </select>
+          <div id="expense-category-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <!-- Date field -->
+        <div class="form-group">
+          <label for="expense-date">Date <span aria-hidden="true">*</span></label>
+          <input
+            type="date"
+            id="expense-date"
+            name="date"
+            required
+            aria-required="true"
+            aria-describedby="expense-date-error"
+          >
+          <div id="expense-date-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <!-- Description field (optional) -->
+        <div class="form-group">
+          <label for="expense-description">Description <span class="label-optional">(optional)</span></label>
+          <textarea
+            id="expense-description"
+            name="description"
+            rows="3"
+            maxlength="255"
+            placeholder="Brief description (up to 255 characters)"
+            aria-describedby="expense-description-error"
+          ></textarea>
+          <div id="expense-description-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <button type="submit">Add Transaction</button>
+
+      </form>
+    </section>
+
+    <!-- Set Budget view (hidden by default) -->
+    <section id="view-set-budget" class="view" aria-label="Set Budget" hidden>
+      <h2>Set Budget</h2>
+      <p class="view-intro">Set a spending limit per category. Categories over their limit are highlighted on the Dashboard.</p>
+
+      <form id="form-budget" novalidate>
+
+        <!-- Category field -->
+        <div class="form-group">
+          <label for="budget-category">Category <span aria-hidden="true">*</span></label>
+          <select
+            id="budget-category"
+            name="categoryId"
+            required
+            aria-required="true"
+            aria-describedby="budget-category-error"
+          >
+            <option value="">-- Select a category --</option>
+            <!-- Populated dynamically -->
+          </select>
+          <div id="budget-category-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <!-- Amount field -->
+        <div class="form-group">
+          <label for="budget-amount">Budget Limit <span aria-hidden="true">*</span></label>
+          <input
+            type="number"
+            id="budget-amount"
+            name="amount"
+            min="0.01"
+            max="999999999.99"
+            step="0.01"
+            placeholder="0.00"
+            required
+            aria-required="true"
+            aria-describedby="budget-amount-error"
+          >
+          <div id="budget-amount-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <button type="submit">Set Budget</button>
+
+      </form>
+    </section>
+
+    <!-- Manage Categories view (hidden by default) -->
+    <section id="view-categories" class="view" aria-label="Manage Categories" hidden>
+      <h2>Manage Categories</h2>
+
+      <!-- Add custom category form -->
+      <form id="form-add-category" novalidate>
+        <div class="form-group">
+          <label for="category-name">Category Name <span aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="category-name"
+            name="name"
+            maxlength="50"
+            placeholder="Enter category name (1–50 characters)"
+            required
+            aria-required="true"
+            aria-describedby="category-name-error"
+          >
+          <div id="category-name-error" class="form-error" role="alert" aria-live="polite"></div>
+        </div>
+
+        <button type="submit">Add Category</button>
+      </form>
+
+      <!-- Custom categories list -->
+      <div class="category-section">
+        <h3>Custom Categories</h3>
+        <ul id="custom-category-list" aria-label="Custom categories">
+          <!-- Populated dynamically -->
+        </ul>
+        <p id="custom-categories-empty" class="empty-state-message">No custom categories yet.</p>
+      </div>
+
+      <!-- Default categories (read-only) -->
+      <div class="category-section">
+        <h3>Default Categories</h3>
+        <p class="default-categories-note">These categories are always available and cannot be deleted.</p>
+        <ul class="default-category-list" aria-label="Default categories">
+          <li>Food</li>
+          <li>Transport</li>
+          <li>Fun</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Monthly Summary view (hidden by default) -->
+    <section id="view-monthly" class="view" aria-label="Monthly Summary" hidden>
+      <h2>Monthly Summary</h2>
+      <p class="view-intro">Total spending grouped by month, most recent first.</p>
+
+      <div class="monthly-summary" aria-label="Monthly totals">
+        <table class="monthly-table">
+          <thead>
+            <tr>
+              <th scope="col">Month</th>
+              <th scope="col">Transactions</th>
+              <th scope="col">Total Spent</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-table-body">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Confirm / cancel dialog overlay -->
+  <div
+    id="dialog-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="dialog-title"
+    hidden
+  >
+    <div class="dialog-card">
+      <h2 id="dialog-title" class="dialog-title">Confirm Action</h2>
+      <p id="dialog-message" class="dialog-message"></p>
+      <div class="dialog-actions">
+        <button id="dialog-confirm" type="button" class="btn-danger">Confirm</button>
+        <button id="dialog-cancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification (top-right, auto-dismiss) -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="./js/main.js"></script>
+</body>
+</html>

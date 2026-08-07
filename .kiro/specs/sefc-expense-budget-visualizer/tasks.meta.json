@@ -1,0 +1,167 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Create project scaffold and HTML shell": [
+      {
+        "executionId": "73d94873-634a-4cfe-be5e-88f7050526ef",
+        "chatSessionId": "sess_131ddc4e-d326-48d0-acae-080484126686",
+        "timestamp": 1786107936751
+      },
+      {
+        "executionId": "73d94873-634a-4cfe-be5e-88f7050526ef",
+        "chatSessionId": "sess_131ddc4e-d326-48d0-acae-080484126686",
+        "timestamp": 1786108354959
+      }
+    ],
+    "2. Implement storage module": [
+      {
+        "executionId": "2ff8900c-6c48-44fb-8c20-de0a7aa16442",
+        "chatSessionId": "sess_0dd7ed99-f77e-48a8-84fb-53b8f2bb0329",
+        "timestamp": 1786108582275
+      },
+      {
+        "executionId": "2ff8900c-6c48-44fb-8c20-de0a7aa16442",
+        "chatSessionId": "sess_0dd7ed99-f77e-48a8-84fb-53b8f2bb0329",
+        "timestamp": 1786108648498
+      }
+    ],
+    "2.1 Create `js/storage.js`": [
+      {
+        "executionId": "2ff8900c-6c48-44fb-8c20-de0a7aa16442",
+        "chatSessionId": "sess_0dd7ed99-f77e-48a8-84fb-53b8f2bb0329",
+        "timestamp": 1786108588797
+      },
+      {
+        "executionId": "2ff8900c-6c48-44fb-8c20-de0a7aa16442",
+        "chatSessionId": "sess_0dd7ed99-f77e-48a8-84fb-53b8f2bb0329",
+        "timestamp": 1786108648334
+      }
+    ],
+    "2.2 Write unit tests for `storage.js` (`tests/storage.test.js`)": [
+      {
+        "executionId": "293c93ad-2ac5-465d-b241-6b70ca9adcf4",
+        "chatSessionId": "sess_59ec271d-52ea-4331-88de-4e68768e7dfb",
+        "timestamp": 1786108803240
+      }
+    ],
+    "3.1 Create `js/validator.js`": [
+      {
+        "executionId": "0422506c-6af1-4e19-a235-20f03b4f3c11",
+        "chatSessionId": "sess_8294fd13-bf84-44e2-8b02-dc58677a1d5e",
+        "timestamp": 1786109537430
+      },
+      {
+        "executionId": "0422506c-6af1-4e19-a235-20f03b4f3c11",
+        "chatSessionId": "sess_8294fd13-bf84-44e2-8b02-dc58677a1d5e",
+        "timestamp": 1786109725099
+      }
+    ],
+    "3. Implement validator module": [
+      {
+        "executionId": "0422506c-6af1-4e19-a235-20f03b4f3c11",
+        "chatSessionId": "sess_8294fd13-bf84-44e2-8b02-dc58677a1d5e",
+        "timestamp": 1786109725225
+      }
+    ],
+    "4. Checkpoint — storage and validator foundation": [
+      {
+        "executionId": "846626bd-395f-42a4-b4b2-88415f842933",
+        "chatSessionId": "sess_883c3fb2-6df8-4ae5-83d4-d7ff4bea4857",
+        "timestamp": 1786109922230
+      }
+    ],
+    "5.1 Create `js/categories.js`": [
+      {
+        "executionId": "b7813c94-9af7-4cce-8124-b369d2627c51",
+        "chatSessionId": "sess_bb313be1-0857-4269-b85a-9338af8ec10d",
+        "timestamp": 1786110027681
+      },
+      {
+        "executionId": "b7813c94-9af7-4cce-8124-b369d2627c51",
+        "chatSessionId": "sess_bb313be1-0857-4269-b85a-9338af8ec10d",
+        "timestamp": 1786110103939
+      }
+    ],
+    "5. Implement categories module": [
+      {
+        "executionId": "b7813c94-9af7-4cce-8124-b369d2627c51",
+        "chatSessionId": "sess_bb313be1-0857-4269-b85a-9338af8ec10d",
+        "timestamp": 1786110104076
+      }
+    ],
+    "6.1 Create `js/expenses.js`": [
+      {
+        "executionId": "e911355a-15f8-4de4-9887-3031f55e9e76",
+        "chatSessionId": "sess_6eaf53f4-4f36-44dc-8c35-7dba8766dd08",
+        "timestamp": 1786110234161
+      },
+      {
+        "executionId": "e911355a-15f8-4de4-9887-3031f55e9e76",
+        "chatSessionId": "sess_6eaf53f4-4f36-44dc-8c35-7dba8766dd08",
+        "timestamp": 1786110301728
+      }
+    ],
+    "6. Implement expenses module": [
+      {
+        "executionId": "e911355a-15f8-4de4-9887-3031f55e9e76",
+        "chatSessionId": "sess_6eaf53f4-4f36-44dc-8c35-7dba8766dd08",
+        "timestamp": 1786110301866
+      }
+    ],
+    "7.1 Create `js/budgets.js`": [
+      {
+        "executionId": "481d5b0b-b690-4053-a7e4-1841cc3056d5",
+        "chatSessionId": "sess_2362b73a-1f00-443a-9195-da5223a65506",
+        "timestamp": 1786110468090
+      },
+      {
+        "executionId": "481d5b0b-b690-4053-a7e4-1841cc3056d5",
+        "chatSessionId": "sess_2362b73a-1f00-443a-9195-da5223a65506",
+        "timestamp": 1786110540648
+      }
+    ],
+    "7. Implement budgets module": [
+      {
+        "executionId": "481d5b0b-b690-4053-a7e4-1841cc3056d5",
+        "chatSessionId": "sess_2362b73a-1f00-443a-9195-da5223a65506",
+        "timestamp": 1786110540768
+      }
+    ],
+    "9. Implement UI helpers module": [
+      {
+        "executionId": "421b7bc3-926e-430f-8ac3-928f5d7ee913",
+        "chatSessionId": "sess_c62ac42d-8743-4310-9135-089c83a005a1",
+        "timestamp": 1786130158072
+      },
+      {
+        "executionId": "421b7bc3-926e-430f-8ac3-928f5d7ee913",
+        "chatSessionId": "sess_c62ac42d-8743-4310-9135-089c83a005a1",
+        "timestamp": 1786130886802
+      }
+    ],
+    "10. Implement chart module": [
+      {
+        "executionId": "692fcc60-39cc-4e4c-a5a3-97be45c855f9",
+        "chatSessionId": "sess_c072665a-5d2f-42bf-8cdb-03052121bf9c",
+        "timestamp": 1786132046409
+      },
+      {
+        "executionId": "550ed1fe-b971-4449-931b-4d94acd40977",
+        "chatSessionId": "sess_c072665a-5d2f-42bf-8cdb-03052121bf9c",
+        "timestamp": 1786133250187
+      }
+    ],
+    "10.1 Create `js/chart.js`": [
+      {
+        "executionId": "550ed1fe-b971-4449-931b-4d94acd40977",
+        "chatSessionId": "sess_c072665a-5d2f-42bf-8cdb-03052121bf9c",
+        "timestamp": 1786132988871
+      },
+      {
+        "executionId": "550ed1fe-b971-4449-931b-4d94acd40977",
+        "chatSessionId": "sess_c072665a-5d2f-42bf-8cdb-03052121bf9c",
+        "timestamp": 1786133246928
+      }
+    ]
+  }
+}
