@@ -2,42 +2,48 @@
 
 ## Overview
 
-The SEFC Expense & Budget Visualizer is a fully client-side, single-page web application delivered as a small set of static files. It requires no build step, no backend, and no package manager — it runs directly in any modern browser and is deployable as-is to GitHub Pages.
+A fully client-side, single-page web application delivered as exactly three files: `index.html`, `css/main.css`, and `js/main.js`. No build step, no backend, no package manager beyond an optional dev-time static file server for local testing. The only external dependency is **Chart.js 4.4.1** loaded from a CDN `<script>` tag.
 
-The application lets users record expenses, set per-category budgets, and see a grouped bar chart comparing spending against budget limits. All data lives in the browser's `localStorage`. The only external dependency is **Chart.js 4.x** loaded from a CDN.
+This document reflects the app as actually built — it superseded an earlier draft (multi-file ES-module architecture, 5 default categories, a grouped bar chart, and a full Vitest/fast-check test suite) once the actual assignment brief's constraints were identified (see "Revision history" below).
 
 ### Key Design Decisions
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| File structure | Multi-file (HTML + CSS + JS) | Easier to maintain than a single 1000-line file; GitHub Pages serves any static file |
-| State management | Module-level JS objects | No framework; plain ES modules replace component state |
-| Chart library | Chart.js 4.x (CDN) | Meets the "one charting utility" constraint; grouped bar charts are built-in |
-| IDs | `crypto.randomUUID()` | Cryptographically unique, natively available in all target browsers |
-| Validation | Pure functions in `validator.js` | Decoupled from the DOM; easy to unit-test |
-| Currency display | `Intl.NumberFormat` | Locale-aware formatting with no extra library |
+| File count | Exactly 1 CSS file, 1 JS file | Assignment folder rule: "Only 1 CSS file inside `css/`", "Only 1 JavaScript file inside `js/`" |
+| Script type | Classic `<script src="./js/main.js">` (not `type="module"`) | Runs directly over `file://` with no CORS/server requirement — matches "no complex setup" and works as a double-clicked local file |
+| Internal structure | One file, organised into namespaced `const` objects (`Storage`, `Validator`, `Categories`, `Expenses`, `Budgets`, `UI`, `ChartModule`, `Theme`) inside a single IIFE | Keeps the separation-of-concerns benefits of the original multi-module design without violating the one-file rule |
+| Chart type | Pie chart (spending by category) | The brief's example output specifically shows a pie chart, not a bar chart |
+| IDs | `crypto.randomUUID()`, with a timestamp+random fallback | Unique, natively available in all target browsers |
+| Validation | Pure functions on the `Validator` object — no DOM access | Decoupled from rendering, easy to reason about |
+| Currency display | `Intl.NumberFormat` | Locale-aware formatting, no extra library |
+| Theming | CSS custom properties, toggled via `html[data-theme]`, persisted to `sefc_theme` | No CSS framework; cheap to toggle at runtime |
 
 ---
 
 ## Architecture
 
-The application follows a **layered module architecture** within a multi-file static project. There is no build step — files are loaded via `<script type="module">`.
-
 ```
 Browser
-  └─ index.html          (HTML shell, imports CSS, bootstraps JS)
-       ├─ styles/
-       │    └─ main.css  (responsive layout, component styles, WCAG colours)
+  └─ index.html          (HTML shell, single CSS link, single JS script)
+       ├─ css/
+       │    └─ main.css   (all styles: layout, theme, components, responsive)
        └─ js/
-            ├─ main.js          (entry point — DOMContentLoaded, view routing)
-            ├─ storage.js       (LocalStorage read/write/error handling)
-            ├─ validator.js     (pure validation functions, no DOM access)
-            ├─ categories.js    (default + custom category management)
-            ├─ expenses.js      (expense CRUD operations)
-            ├─ budgets.js       (budget CRUD operations)
-            ├─ chart.js         (Chart.js wrapper — create, update, destroy)
-            └─ ui.js            (DOM helpers, rendering, confirmation dialogs)
+            └─ main.js    (everything — wrapped in one IIFE)
 ```
+
+`js/main.js` is internally organised top-to-bottom as:
+
+1. **Storage** — `isAvailable()`, `read()`, `write()`, `clear()` — safe localStorage wrapper.
+2. **Validator** — `isValidAmount`, `isValidDate`, `validateExpense`, `validateBudget`, `validateCategoryName` — pure functions.
+3. **Categories** — `DEFAULT_CATEGORIES` (Food/Transport/Fun) + `getAll/addCustom/deleteCustom/findById/isDefault`.
+4. **Expenses** ("Transactions" in the UI) — `getAll/add/remove`, plus `sortExpenses()` for the sort-control optional challenge.
+5. **Budgets** — `getAll/getByCategory/set`.
+6. **Formatting helpers** — `formatCurrency`, `formatDate`, `formatMonthLabel`, `todayISO`, `buildSpentByCategory`.
+7. **UI** — all DOM rendering and interaction: `renderTotalSummary`, `renderBudgetSummary`, `renderExpenseList`, `renderMonthlySummary`, `renderEmptyState`, `showConfirmDialog`, `showConfirmation` (toast), `showError`, `clearErrors`, `setLoadingState`.
+8. **ChartModule** — Chart.js pie chart wrapper: `init`, `update`, `destroy`, with CDN-failure and empty-state handling.
+9. **Theme** — `init`, `apply`, `toggle` for the dark/light mode optional challenge.
+10. **App wiring** — `renderDashboard`, `populateCategorySelects`, `renderCategoryList`, `showView` (view router), form/delete/reset handlers, `attachEventListeners`, and the `DOMContentLoaded` bootstrap.
 
 ### Data Flow
 
@@ -45,175 +51,61 @@ Browser
 User Action
     │
     ▼
-ui.js  ──event handler──►  validator.js (pure validation)
-    │                           │
-    │  valid                    │ invalid
-    ▼                           ▼
-expenses.js / budgets.js /   ui.js (show inline error)
-categories.js
+DOM event handler (bottom of main.js) ──► Validator (pure validation)
+    │                                          │
+    │ valid                                    │ invalid
+    ▼                                          ▼
+Expenses / Budgets / Categories             UI.showError (inline, role=alert)
     │
     ▼
-storage.js (localStorage read/write)
+Storage (localStorage read/write)
     │
     ▼
-ui.js + chart.js (re-render dashboard)
+UI render functions + ChartModule.update + UI.showConfirmation (toast)
 ```
 
 ### View Routing
 
-The app is a single-page application with two "views" toggled by CSS `display` on panel elements:
+Single-page app; views are `<section class="view">` panels toggled via `hidden` + a `view--active` class:
 
-- **Dashboard** (default) — chart, summary totals, remaining budget table, expense list
-- **Add Expense** — expense entry form
+- **Dashboard** (default) — total balance, pie chart, budget summary, transaction list
+- **Add Transaction** — transaction entry form
 - **Set Budget** — budget entry form
-- **Manage Categories** — add/delete custom categories
+- **Categories** — add/delete custom categories
+- **Monthly Summary** — transactions grouped by month
 
-Navigation is handled by `main.js` by toggling an `aria-current` attribute on nav links and swapping visible panels. No URL changes or hash routing are required.
-
----
-
-## Components and Interfaces
-
-### `storage.js`
-
-Wraps all `localStorage` access. Provides safe read/write with JSON serialisation and error handling.
-
-```js
-// Public API
-storage.read(key)                 // → parsed object, or null on failure
-storage.write(key, value)         // → { ok: true } | { ok: false, error }
-storage.clear(keys[])             // → { ok: true } | { ok: false, error }
-storage.isAvailable()             // → boolean
-```
-
-All reads return `null` (not throw) when data is absent or malformed. All writes return a result object rather than throwing.
-
-### `validator.js`
-
-Pure functions — no DOM access, no side effects.
-
-```js
-// Public API
-validator.validateExpense({ amount, categoryId, date, description })
-  // → { valid: true, errors: {} } | { valid: false, errors: { field: message } }
-
-validator.validateBudget({ amount, categoryId })
-  // → { valid: true, errors: {} } | { valid: false, errors: { field: message } }
-
-validator.validateCategoryName(name, existingNames[])
-  // → { valid: true } | { valid: false, error: string }
-
-validator.isValidAmount(value)    // → boolean
-validator.isValidDate(dateStr)    // → boolean  (within [today-10yr, today+1day])
-```
-
-Amount validation rules:
-- Must be a finite number (or parseable string representing one)
-- `0.01 ≤ value ≤ 999_999_999.99`
-- No more than 2 decimal places
-
-Date validation rules:
-- Must parse to a valid calendar date
-- No earlier than 10 years before the current date
-- No later than 1 day after the current date
-
-### `categories.js`
-
-Manages the combined default + custom category list.
-
-```js
-categories.getAll()                     // → Category[]
-categories.addCustom(name)              // → { ok: true, category } | { ok: false, error }
-categories.deleteCustom(id)             // → { ok: true } | { ok: false, error }
-categories.findById(id)                 // → Category | null
-categories.isDefault(id)               // → boolean
-```
-
-### `expenses.js`
-
-```js
-expenses.getAll()                       // → Expense[] sorted by date DESC
-expenses.add(expenseData)              // → { ok: true, expense } | { ok: false }
-expenses.remove(id)                    // → { ok: true } | { ok: false }
-```
-
-### `budgets.js`
-
-```js
-budgets.getAll()                       // → Budget[]
-budgets.getByCategory(categoryId)      // → Budget | null
-budgets.set(budgetData)               // → { ok: true, budget, isUpdate } | { ok: false }
-```
-
-### `chart.js`
-
-Wraps Chart.js. Creates a grouped bar chart instance and provides an update method.
-
-```js
-chartModule.init(canvasEl)            // Creates Chart instance; idempotent
-chartModule.update(expenses, budgets, categories)  // Recomputes datasets, calls chart.update()
-chartModule.destroy()                 // Cleans up Chart instance
-```
-
-Chart dataset structure:
-- Dataset 1 "Spent": one bar per category; background colour = normal colour unless over budget, then overage colour
-- Dataset 2 "Budget": one bar per category; neutral background colour
-
-### `ui.js`
-
-DOM helpers and rendering functions. All functions that touch the DOM live here.
-
-```js
-ui.renderExpenseList(expenses)
-ui.renderBudgetSummary(budgets, expenses, categories)
-ui.renderTotalSummary(expenses)
-ui.showConfirmDialog(message)                          // → Promise<boolean>
-ui.showConfirmation(message, durationMs)               // Auto-dismissing toast
-ui.showError(fieldEl, message)
-ui.clearErrors(formEl)
-ui.setLoadingState(bool)
-ui.renderEmptyState(containerEl, message)
-```
-
-### `main.js`
-
-Entry point. Sets up event listeners for all user actions and orchestrates calls to the other modules. Handles the `DOMContentLoaded` lifecycle:
-
-1. Check `storage.isAvailable()` — show warning banner if not
-2. Load data via `expenses.getAll()`, `budgets.getAll()`, `categories.getAll()`
-3. Populate category dropdowns
-4. Render dashboard (chart, expense list, summary)
-5. Attach event listeners to nav, forms, and action buttons
+`showView()` toggles panel visibility and `aria-current` on the matching nav link; no URL/hash routing.
 
 ---
 
 ## Data Models
 
-### Expense
+### Expense ("Transaction")
 
 ```js
 {
-  id: string,          // crypto.randomUUID() — globally unique
-  amount: number,      // 0.01 – 999,999,999.99 (2 decimal places max)
-  categoryId: string,  // References Category.id
-  categoryLabel: string, // Snapshot of category name at time of entry
-  date: string,        // ISO 8601 date string "YYYY-MM-DD"
-  description: string  // "" if not provided; max 255 characters
-  createdAt: string    // ISO 8601 datetime for internal ordering (not displayed)
+  id: string,            // crypto.randomUUID()
+  name: string,           // Item Name — required, 1–100 chars
+  amount: number,          // 0.01 – 999,999,999.99, max 2 decimal places
+  categoryId: string,      // references Category.id
+  categoryLabel: string,   // denormalised snapshot of category name at write time
+  date: string,            // "YYYY-MM-DD"
+  description: string,     // "" if not provided; max 255 chars
+  createdAt: string        // ISO datetime, internal sort tiebreaker
 }
 ```
 
-> `categoryLabel` is a denormalised snapshot. If a custom category is later deleted, the label string is preserved on the expense record as-is (Requirement 6.5).
+> `categoryLabel` is denormalised so a Transaction keeps a readable category name even after its custom Category is deleted.
 
 ### Budget
 
 ```js
 {
-  id: string,          // crypto.randomUUID()
-  categoryId: string,  // References Category.id (unique constraint enforced in budgets.js)
-  categoryLabel: string, // Snapshot of category name
-  amount: number,      // 0.01 – 999,999,999.99
-  updatedAt: string    // ISO 8601 datetime of last write
+  id: string,
+  categoryId: string,      // one budget per category (overwritten on re-set)
+  categoryLabel: string,
+  amount: number,
+  updatedAt: string
 }
 ```
 
@@ -221,274 +113,149 @@ Entry point. Sets up event listeners for all user actions and orchestrates calls
 
 ```js
 {
-  id: string,          // Fixed string for defaults; crypto.randomUUID() for custom
-  name: string,        // Display name; 1–50 characters
-  isDefault: boolean   // true = cannot be deleted
+  id: string,      // fixed for defaults ("cat-food" etc.); crypto.randomUUID() for custom
+  name: string,     // 1–50 chars
+  isDefault: boolean
 }
 ```
 
-### Default Categories (hard-coded in `categories.js`)
+### Default Categories (hard-coded)
 
 | id | name |
 |---|---|
-| `"cat-food"` | Food |
-| `"cat-transport"` | Transport |
-| `"cat-utilities"` | Utilities |
-| `"cat-entertainment"` | Entertainment |
-| `"cat-other"` | Other |
+| `cat-food` | Food |
+| `cat-transport` | Transport |
+| `cat-fun` | Fun |
 
 ---
 
 ## LocalStorage Schema
 
-| Key | Value type | Description |
+| Key | Value | Description |
 |---|---|---|
-| `"sefc_expenses"` | `Expense[]` (JSON array) | All expense records |
-| `"sefc_budgets"` | `Budget[]` (JSON array) | One entry per category |
-| `"sefc_categories"` | `Category[]` (JSON array) | Custom categories only; defaults are always injected at runtime |
+| `sefc_expenses` | `Expense[]` | All transactions |
+| `sefc_budgets` | `Budget[]` | One entry per budgeted category |
+| `sefc_categories` | `Category[]` | Custom categories only; the 3 defaults are always injected at runtime |
+| `sefc_theme` | `"light" \| "dark"` | Persisted theme preference |
 
-**Read strategy**: On app load, `storage.read(key)` attempts `JSON.parse`. If parsing fails, it returns `null` and the caller initialises from an empty array. A user-visible warning banner is shown.
-
-**Write strategy**: `storage.write(key, array)` calls `JSON.stringify` then `localStorage.setItem`. The call is synchronous. If a `QuotaExceededError` or any other exception is thrown, the function returns `{ ok: false, error }` and the caller shows an error message — the in-memory state is NOT updated so the UI remains consistent with what is actually stored.
-
-**Storage budget estimate**: Each expense record is roughly 200 bytes as JSON. A user with 10,000 expenses would use ~2 MB, well within the 5–10 MB limit ([source](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)).
+Reads never throw — malformed JSON resolves to `null`, and callers fall back to `[]`. Writes return `{ ok, error? }`; callers only update in-memory state after a successful write, so a failed write never leaves the UI showing unsaved data as saved.
 
 ---
 
-## UI Layout and Component Hierarchy
+## UI Layout and Responsive Strategy
 
 ```
 <body>
-  <header>                          Navigation bar + app title
-    <nav>                           Dashboard | Add Expense | Set Budget | Manage Categories
-    <button id="btn-reset">         "Reset All Data"
-
-  <main>
-    <section id="view-dashboard">   Default visible view
-      <div class="summary-total">   "Total Spent: $X,XXX.XX"
-      <div class="chart-container"> <canvas id="main-chart">
-      <div class="budget-summary">  Table: Category | Budget | Spent | Remaining
-      <div class="expense-list">    List items with delete button
-
-    <section id="view-add-expense" hidden>
-      <form id="form-expense">
-        <label>Amount <input type="number" ...>
-        <label>Category <select ...>
-        <label>Date <input type="date" ...>
-        <label>Description <textarea ...>   (optional)
-        <button type="submit">Add Expense
-        <div class="form-confirmation" role="status">
-
-    <section id="view-set-budget" hidden>
-      <form id="form-budget">
-        <label>Category <select ...>
-        <label>Budget Limit <input type="number" ...>
-        <button type="submit">Set Budget
-        <div class="form-confirmation" role="status">
-
-    <section id="view-categories" hidden>
-      <form id="form-add-category">
-        <label>Category Name <input type="text" ...>
-        <button type="submit">Add Category
-      <ul id="custom-category-list">   (each item has a delete button)
-      <div>Default categories: Food, Transport, ...   (read-only list)
-
-  <div id="dialog-overlay" role="dialog" aria-modal="true" hidden>
-    Confirm/Cancel dialogs (delete, reset)
-
-  <div id="loading-indicator" aria-live="polite" hidden>
+  #storage-warning         (banner, hidden unless localStorage is unavailable)
+  #loading-indicator        (aria-live, hidden after first render)
+  <header>                  full-bleed background, sticky, compact padding
+    .header-inner            capped at --container-max (1320px), centred — logo, nav, actions
+      <h1>
+      <nav>                  Dashboard | Add Transaction | Set Budget | Categories | Monthly Summary
+      .header-actions         grouped so it always wraps as a unit — Dark Mode toggle + Reset All Data
+  <main>                     capped at --container-max, centred
+    #view-dashboard           default view
+      .summary-total           "Total Balance: $X,XXX.XX"
+      .chart-container          <canvas> pie chart (220px mobile / 300px tablet / 400px desktop)
+      .budget-summary           table: Category | Budget | Spent | Remaining
+      .expense-list             header (title + sort <select>) + .expense-items (internally scrollable, capped height)
+    #view-add-expense (hidden)   #form-expense — centred card
+    #view-set-budget (hidden)    #form-budget — centred card
+    #view-categories (hidden)    #form-add-category — centred card; custom + default category lists
+    #view-monthly (hidden)       month-grouped totals table
+  #dialog-overlay             confirm/cancel modal (delete, reset)
+  #toast                      fixed top-right, anchored dynamically below the header
+</body>
 ```
 
-### Responsive Layout Strategy
+### Responsive breakpoints
 
-- **Mobile (375–767px)**: Single column. Nav becomes a collapsible hamburger menu or a scrollable horizontal tab bar. Chart takes full width with reduced height (200px). Budget summary collapses to a stacked card list.
-- **Tablet (768–1023px)**: Two-column layout for the dashboard (chart + budget summary side by side).
-- **Desktop (1024–1440px)**: Three-panel dashboard. Nav is always visible as a sidebar or top bar.
+- **Mobile (< 768px)**: single column; nav is a horizontally scrollable tab row; header wraps to multiple rows as needed.
+- **Tablet (≥ 768px)**: two-column dashboard (chart + budget summary), transaction list full-width below.
+- **Desktop (≥ 1024px)**: three-panel dashboard — `grid-template-columns: minmax(240px, 1.4fr) minmax(280px, 1fr) minmax(280px, 1fr)`. `minmax()` (not fixed pixel widths) lets all three panels shrink together at the low end of this breakpoint instead of overflowing.
 
-CSS uses a `min-width` media query approach. No CSS frameworks — all layout is CSS Grid and Flexbox.
+### Forms as cards
 
-### WCAG Compliance Notes
+`#form-expense`, `#form-budget`, and `#form-add-category` share one rule: `max-width: 480px; margin-inline: auto;` plus a white card background, rounded corners, and shadow — centred on the page rather than left-aligned plain fields.
 
-- All form fields use `<label for="...">` with matching `id` on the input.
-- Error messages use `role="alert"` so screen readers announce them immediately.
-- Confirmation toast uses `role="status"` (polite) so it does not interrupt.
-- Confirmation dialogs use `role="dialog"` with `aria-modal="true"` and `aria-labelledby`.
-- Touch targets (buttons, delete icons) are at minimum 44×44 CSS pixels via padding.
-- Colour palette is chosen to guarantee 4.5:1 contrast ratio for all text. Overage bars use a colour distinguishable from both normal bars and the background (tested with a colour contrast checker).
-- Focus trap is applied inside the confirm dialog while it is open.
+### Toast notifications
+
+A single global `#toast` element (not one per form) is reused by every action. `UI.showConfirmation()` reads the header's live rendered height and sets the toast's `top` inline style to sit just below it — accounting for the header wrapping to more than one row on narrow viewports or when the storage warning banner is visible. It slides in from the right and fades out on auto-dismiss (default 3s).
+
+### Fixed-height, internally-scrolling panels
+
+`.expense-items` (the `<ul>` inside the transaction list) has `overflow-y: auto` with a `max-height` matched to the chart panel's height at each breakpoint, so the Dashboard page itself doesn't grow as transactions accumulate — only that inner list scrolls. The sort control stays outside the scroll area so it's always reachable.
+
+### WCAG / accessibility notes
+
+- All form fields use `<label for>` matched to input `id`.
+- Error messages use `role="alert"`; the toast uses `role="status"`.
+- The confirm/cancel dialog uses `role="dialog"`, `aria-modal="true"`, and traps focus while open.
+- Touch targets are ≥ 44×44 CSS pixels.
 
 ---
 
 ## Chart Integration (Chart.js)
 
-**CDN include** (added to `<head>` of `index.html`):
-
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 ```
 
-**Chart configuration** (produced by `chartModule.update()`):
+`ChartModule.update(expenses, categories)` builds a single-dataset **pie** chart: one slice per category with `spentByCategory > 0`, labelled with the category name, coloured from a fixed 10-colour palette assigned **by position** (not by hashing the category ID) — hashing produced visually similar adjacent colours for small category counts (e.g. Food and Fun both landing on similar blues), so positional assignment is used instead for guaranteed contrast with 2–3 categories.
 
 ```js
 {
-  type: 'bar',
+  type: 'pie',
   data: {
-    labels: ['Food', 'Transport', ...],   // category names
-    datasets: [
-      {
-        label: 'Spent',
-        data: [450, 120, ...],            // sum of expenses per category
-        backgroundColor: categories.map(c =>
-          isOverBudget(c) ? '#E53E3E' : '#4A90D9'   // red if over, blue otherwise
-        )
-      },
-      {
-        label: 'Budget',
-        data: [500, 200, ...],            // budget limit per category (0 if unset)
-        backgroundColor: '#A0AEC0'        // neutral grey
-      }
-    ]
+    labels: [...],                 // category names with spending > 0
+    datasets: [{
+      data: [...],                  // total spent per category
+      backgroundColor: [...],       // CHART_PALETTE[index % length]
+    }],
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'top' },
-      tooltip: {
-        callbacks: {
-          label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
-        }
-      }
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${formatCurrency(ctx.parsed)}` } },
     },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: { callback: formatCurrency }
-      }
-    }
-  }
+  },
 }
 ```
 
-The `<canvas>` is wrapped in a `div.chart-container` with `position: relative` and a fixed height (300px mobile, 400px desktop) so `responsive: true` / `maintainAspectRatio: false` sizes the chart correctly.
-
-The chart instance is stored in `chartModule`'s module-level variable. On every data change, `chartModule.update()` mutates `chart.data` directly and calls `chart.update()` to avoid destroying and recreating the instance (avoids flicker).
-
-**Empty state**: When `expenses.getAll()` and `budgets.getAll()` both return empty arrays, `chartModule` hides the canvas and shows the empty-state message. On first data entry, the canvas is made visible and the chart is initialised.
+`chart.data` is mutated in place and `chart.update()` is called — the Chart instance is never destroyed/recreated, avoiding flicker. Both the canvas's `hidden` attribute **and** its inline `style.display` are toggled together for the empty/unavailable states, because Chart.js applies its own inline `display` style for responsive sizing, which otherwise silently overrides the `[hidden]` UA stylesheet rule.
 
 ---
 
-## Validation Logic Design
+## Validation Logic
 
-All validation is performed in `validator.js` as pure functions before any storage write. The DOM layer (`ui.js`) calls the validator, reads the `errors` object, and renders inline error messages adjacent to each offending field.
+All in `Validator`, pure, no DOM access.
 
-### Amount Validation
-
-```
-isValidAmount(raw):
-  1. Trim whitespace
-  2. If empty → false
-  3. Parse to float → if NaN or Infinity → false
-  4. If value < 0.01 or value > 999_999_999.99 → false
-  5. If decimal places > 2 → false
-  6. → true
-```
-
-### Date Validation
-
-```
-isValidDate(dateStr):
-  1. Attempt Date.parse → if invalid → false
-  2. Compute minDate = today minus 10 years
-  3. Compute maxDate = today plus 1 day
-  4. If date < minDate or date > maxDate → false
-  5. → true
-```
-
-### Description Validation (optional field)
-
-```
-validateDescription(value):
-  1. If empty string → valid (optional field)
-  2. If length > 255 → invalid, error message
-  3. → valid
-```
-
-### Category Name Validation
-
-```
-validateCategoryName(name, existingNames):
-  1. Trim whitespace
-  2. If length < 1 → invalid
-  3. If length > 50 → invalid
-  4. Normalise to lowercase; if any existingNames normalised to lowercase matches → duplicate error
-  5. → valid
-```
+- **Amount**: trim → parse float → reject NaN/Infinity → `0.01 ≤ v ≤ 999,999,999.99` → reject > 2 decimal places.
+- **Date**: `Date.parse` must succeed → within `[today − 10y, today + 1d]`.
+- **Item Name**: required, ≤ 100 chars.
+- **Description**: optional, ≤ 255 chars.
+- **Category name**: 1–50 chars, case-insensitive duplicate check against existing names.
 
 ---
 
-## Event Flow / Interaction Patterns
+## Error Handling
 
-### Add Expense
+| Scenario | Handling |
+|---|---|
+| `localStorage` unavailable | Persistent banner; app stays functional in-memory for the session |
+| Malformed JSON in storage | Discard that key's data, initialise as `[]`, no throw |
+| `localStorage.setItem` throws (quota) | Inline field error "Could not save — storage is full or unavailable."; in-memory state untouched |
+| `localStorage.clear`/`removeItem` throws | `window.alert("Reset failed. Your data is unchanged.")`; data preserved |
+| Chart.js CDN fails to load | Canvas hidden, fallback message shown; rest of app unaffected |
+| `crypto.randomUUID` unavailable | Falls back to a timestamp + `Math.random()` composite ID |
 
-```
-1. User fills form and submits
-2. main.js handleExpenseSubmit(event):
-   a. event.preventDefault()
-   b. Read form values
-   c. validator.validateExpense(data) → if invalid: ui.showErrors(); return
-   d. expenses.add(data) → calls storage.write()
-   e. If storage write fails: ui.showError(form, "Save failed"); return
-   f. ui.showConfirmation("Expense added!", 3000)
-   g. form.reset()
-   h. Re-render chart + expense list
-```
+---
 
-### Delete Expense
+## Testing Strategy
 
-```
-1. User clicks delete button on an expense row
-2. main.js handleDeleteExpense(id):
-   a. confirmed = await ui.showConfirmDialog("Delete this expense?")
-   b. If !confirmed: return
-   c. expenses.remove(id) → calls storage.write()
-   d. Re-render expense list + chart + summary
-```
-
-### Set Budget
-
-```
-1. User fills budget form and submits
-2. main.js handleBudgetSubmit(event):
-   a. validator.validateBudget(data) → if invalid: ui.showErrors(); return
-   b. isUpdate = budgets.getByCategory(categoryId) !== null
-   c. budgets.set(data)
-   d. ui.showConfirmation(isUpdate ? "Budget updated!" : "Budget set!", 3000)
-   e. Re-render chart + summary
-```
-
-### Reset All Data
-
-```
-1. User clicks "Reset All Data"
-2. confirmed = await ui.showConfirmDialog("This will delete all expenses, budgets, and custom categories. Are you sure?")
-3. If !confirmed: return
-4. result = storage.clear(["sefc_expenses", "sefc_budgets", "sefc_categories"])
-5. If !result.ok: ui.showError(null, "Reset failed. Please try again."); return
-6. Reload all data from storage (now empty); re-render dashboard
-```
-
-### App Load
-
-```
-DOMContentLoaded:
-  1. If !storage.isAvailable(): show persistent warning banner; init with empty state
-  2. Else: load expenses, budgets, categories from storage
-  3. Populate category selects
-  4. Render dashboard
-  5. Attach all event listeners
-  6. Hide loading indicator
-```
+Per the assignment brief's NFR-1 ("No test setup required"), there is no Vitest/fast-check suite. Verification during development was done by driving the app in a real headless-Chromium browser (Playwright) against a local static file server — exercising the full add/validate/delete/reset/sort/theme-toggle/monthly-summary flow, checking rendered layout metrics (widths, overflow, scroll containment) at multiple viewport widths, and confirming zero console errors — rather than relying on code review alone.
 
 ---
 
@@ -497,234 +264,17 @@ DOMContentLoaded:
 ```
 / (repository root)
 ├─ index.html
-├─ styles/
+├─ css/
 │    └─ main.css
 └─ js/
-     ├─ main.js
-     ├─ storage.js
-     ├─ validator.js
-     ├─ categories.js
-     ├─ expenses.js
-     ├─ budgets.js
-     ├─ chart.js
-     └─ ui.js
+     └─ main.js
 ```
 
-GitHub Pages serves any file in the repository root by default. No `_config.yml` or Jekyll configuration is needed. The `index.html` at the root is served as the default document.
-
-All internal script imports use relative paths (`./js/main.js`, `./styles/main.css`). The Chart.js CDN tag means there is zero local build output to manage.
+GitHub Pages serves `index.html` at the repository root directly — no `_config.yml`, no build output to manage.
 
 ---
 
-## Correctness Properties
+## Revision History
 
-*A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
-
-**Property-based testing library**: [fast-check](https://fast-check.io/) (JavaScript). Tests run in a browser-compatible test harness (Vitest or Jest). Each property test runs a minimum of 100 iterations.
-
----
-
-### Property 1: Expense ID uniqueness
-
-*For any* sequence of N valid expense saves, all resulting expense IDs in LocalStorage are distinct — no two saved expenses share the same `id`.
-
-**Validates: Requirements 1.2**
-
----
-
-### Property 2: Amount validation accepts valid range, rejects invalid inputs
-
-*For any* numeric value, `validator.isValidAmount(value)` returns `true` if and only if `0.01 ≤ value ≤ 999,999,999.99` with at most 2 decimal places, and returns `false` for all other inputs (negative, zero, non-numeric, out-of-range, too many decimals).
-
-**Validates: Requirements 1.3, 2.1, 2.3**
-
----
-
-### Property 3: Date validation accepts valid range, rejects out-of-range dates
-
-*For any* date string, `validator.isValidDate(dateStr)` returns `true` if and only if the date parses to a valid calendar date falling within `[today − 10 years, today + 1 day]`, and returns `false` for all dates outside this range or for unparseable strings.
-
-**Validates: Requirements 1.4**
-
----
-
-### Property 4: Description length boundary
-
-*For any* string of length ≤ 255 characters, the validator accepts the description. *For any* string of length > 255 characters, the validator rejects it with an error.
-
-**Validates: Requirements 1.7**
-
----
-
-### Property 5: Successful save clears the form (state after save)
-
-*For any* valid expense input, after `expenses.add(data)` completes successfully, calling `form.reset()` followed by inspecting each form field value yields an empty string or the field's default value. (This property validates the post-save form state; the "clear fields" behaviour is unconditional on valid save.)
-
-**Validates: Requirements 1.8**
-
----
-
-### Property 6: Budget overwrite is idempotent per category
-
-*For any* category and *any two* valid budget amounts A and B applied sequentially to the same category, `budgets.getByCategory(categoryId).amount` equals B (the last written value), and `budgets.getAll()` contains exactly one entry for that category.
-
-**Validates: Requirements 2.5**
-
----
-
-### Property 7: Corrupt LocalStorage initialises to empty state
-
-*For any* string that is not valid JSON, storing it under `"sefc_expenses"` or `"sefc_budgets"` and then calling the app's load routine results in an empty expense list and empty budget list (and triggers a user warning), rather than throwing an unhandled exception.
-
-**Validates: Requirements 3.5**
-
----
-
-### Property 8: Total spent summary equals sum of all expense amounts
-
-*For any* collection of expense records, the value returned by the total-spent computation equals the precise arithmetic sum of all `amount` fields, rounded to 2 decimal places.
-
-**Validates: Requirements 4.3**
-
----
-
-### Property 9: Over-budget categories are flagged; within-budget categories are not
-
-*For any* set of expenses and budgets, the chart data-preparation function marks a category as "over budget" (overage colour) if and only if the sum of its expenses strictly exceeds its budget amount. Categories with no budget set are never flagged.
-
-**Validates: Requirements 4.4**
-
----
-
-### Property 10: Remaining budget equals budget minus total expenses
-
-*For any* category that has a budget, the remaining-budget value surfaced in the dashboard equals `budget.amount − sum(expenses for that category)`, which may be negative when over budget.
-
-**Validates: Requirements 4.6**
-
----
-
-### Property 11: Expense list contains all required fields for every entry
-
-*For any* collection of expense records passed to the render function, every rendered list item contains the `amount`, `categoryLabel`, `date`, and `description` (or empty placeholder) of the corresponding expense.
-
-**Validates: Requirements 5.1**
-
----
-
-### Property 12: Expense list is sorted by date descending
-
-*For any* collection of expense records, the list rendered by `ui.renderExpenseList(expenses)` presents entries in descending date order: for any two adjacent entries i and i+1, `entry[i].date >= entry[i+1].date`.
-
-**Validates: Requirements 5.2**
-
----
-
-### Property 13: Delete removes the target expense and only that expense
-
-*For any* expense in storage and *any* confirmed delete action on that expense, it no longer appears in the result of `expenses.getAll()`, and all other expenses remain present and unchanged.
-
-**Validates: Requirements 5.4**
-
----
-
-### Property 14: Cancel delete is a no-op
-
-*For any* storage state and *any* cancelled delete action, `expenses.getAll()` returns the same collection before and after the cancel.
-
-**Validates: Requirements 5.5**
-
----
-
-### Property 15: Category name validation enforces length and case-insensitive uniqueness
-
-*For any* proposed category name, `validator.validateCategoryName(name, existing)` accepts names of 1–50 characters that do not case-insensitively match any existing name, and rejects names outside that length range or that are case-insensitive duplicates of an existing name.
-
-**Validates: Requirements 6.3, 6.4**
-
----
-
-### Property 16: Deleted custom category label is preserved on existing expenses
-
-*For any* expense assigned to a custom category, deleting that custom category leaves the expense's `categoryLabel` field unchanged.
-
-**Validates: Requirements 6.5**
-
----
-
-### Property 17: Reset produces empty storage with only default categories
-
-*For any* storage state, after confirming a data reset, `expenses.getAll()` returns `[]`, `budgets.getAll()` returns `[]`, and `categories.getAll()` returns exactly the 5 default categories (Food, Transport, Utilities, Entertainment, Other).
-
-**Validates: Requirements 8.3**
-
----
-
-### Property 18: Cancel reset is a no-op
-
-*For any* storage state, after cancelling a data reset, `expenses.getAll()`, `budgets.getAll()`, and `categories.getAll()` each return the same data as before the cancel action.
-
-**Validates: Requirements 8.4**
-
----
-
-## Error Handling
-
-| Scenario | Handling |
-|---|---|
-| `localStorage` unavailable (blocked, private mode) | Persistent banner: "Storage unavailable — data will not be saved"; app still functional in-memory for the session |
-| `JSON.parse` fails on load | Discard that key, warn user via banner, initialise with `[]` |
-| `localStorage.setItem` throws `QuotaExceededError` | Show inline error near the form: "Could not save — storage is full"; in-memory state is not updated |
-| `localStorage.clear` / `removeItem` throws | Show error message: "Reset failed. Your data is unchanged."; do not alter in-memory state |
-| Chart.js CDN fails to load | The `<canvas>` container shows a fallback message: "Chart unavailable — could not load charting library"; the rest of the app is unaffected |
-| `crypto.randomUUID` unavailable (very old browser) | Fall back to a timestamp + Math.random composite ID string |
-
----
-
-## Testing Strategy
-
-### Unit Tests (example-based)
-
-Use **Vitest** (zero-config, browser-compatible, ES module-native) run with `--run` for single execution.
-
-Focus areas:
-- `validator.js` — specific known-good and known-bad inputs for amount, date, description, category name
-- `storage.js` — localStorage mock: read/write success, unavailable, quota exceeded, malformed JSON
-- `categories.js` — add/delete/duplicate detection with the 5 defaults always present
-- `expenses.js` / `budgets.js` — add, remove, overwrite, sort order
-- `ui.js` rendering helpers — stub DOM, verify output strings and element states
-- Chart data-preparation logic — overage flag, remaining budget arithmetic, currency formatting
-
-Unit tests cover:
-- Known valid examples (boundary values, common cases)
-- Specific edge conditions: empty inputs, boundary amounts (0.00, 0.01, 999,999,999.99, 1,000,000,000), malformed dates, max-length descriptions
-
-### Property-Based Tests
-
-Use **fast-check** ([fast-check.io](https://fast-check.io/)) run through Vitest.
-
-Each property test runs **minimum 100 iterations** (fast-check default is 100). Each test is annotated with the property it validates.
-
-Tag format:
-```
-// Feature: sefc-expense-budget-visualizer, Property N: <property text>
-```
-
-Properties 2–18 above are each implemented as a single property-based test. Generators used:
-- `fc.float({ min: 0.01, max: 999_999_999.99 })` for valid amounts
-- `fc.oneof(fc.float({ min: -1e9, max: 0 }), fc.string())` for invalid amounts
-- `fc.date({ min: new Date('2000-01-01'), max: new Date() })` for valid dates
-- `fc.array(fc.record({ amount, categoryId, date, description }))` for expense collections
-- `fc.string({ minLength: 1, maxLength: 50 })` for category names
-- `fc.string()` for arbitrary JSON-malformed strings
-
-### Integration / Manual Tests
-
-The following require manual or browser-based verification:
-- Responsive layout at 375px, 768px, 1024px, 1440px (DevTools device toolbar)
-- Cross-browser rendering (Chrome, Firefox, Edge, Safari)
-- Screen reader announcement of form errors and toasts (VoiceOver / NVDA)
-- 44×44px touch target verification (DevTools touch simulation)
-- WCAG 4.5:1 contrast ratio (browser DevTools accessibility panel or WebAIM contrast checker)
-- Dashboard load time ≤ 2 seconds on a throttled 25 Mbps connection (DevTools Network throttle)
-- Chart.js CDN unavailable fallback (DevTools block CDN request)
+- **v1 (superseded)**: Kiro-generated plan built before the actual assignment brief (PDF) was reviewed against the implementation. Used a multi-file ES-module architecture (`storage.js`, `validator.js`, `categories.js`, `expenses.js`, `budgets.js`, `ui.js`, `chart.js`, `main.js`), 5 default categories (Food/Transport/Utilities/Entertainment/Other), a grouped bar chart (Spent vs Budget), no "Item Name" field, and a full Vitest + fast-check property-testing plan.
+- **v2 (current)**: Rebuilt to match the actual brief — consolidated to one CSS file and one JS file (assignment folder rule), added the required Item Name field, switched default categories to Food/Transport/Fun, switched the chart to a pie chart, removed the test-suite plan (brief explicitly says none is required), and added all 5 optional challenges (custom categories, over-budget highlighting, sort, dark/light mode, monthly summary). Subsequent UI passes added toast notifications, card-styled centred forms, fixed-height scrollable panels, and a full-bleed header with capped inner content.
